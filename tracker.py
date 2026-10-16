@@ -52,7 +52,7 @@ for r in ROUTES:
     price_result = check_flights(r)
     email_body += f"<p><strong>{r['from']} → {r['to']}</strong> ({r['date']}): {price_result}</p>"
 
-# Send Email via Gmail SMTP
+# Send Email via Gmail SMTP (Updated for network resilience)
 msg = MIMEMultipart()
 msg['From'] = GMAIL_USER
 msg['To'] = GMAIL_USER
@@ -60,8 +60,8 @@ msg['Subject'] = '🚨 Daily Flight Price Update'
 msg.attach(MIMEText(email_body, 'html'))
 
 try:
-    server = smtplib.SMTP('://gmail.com', 587)
-    server.starttls()
+    # Using the more secure SSL explicit connection port to prevent name resolution drops
+    server = smtplib.SMTP_SSL('://gmail.com', 465, timeout=30)
     server.login(GMAIL_USER, GMAIL_PASSWORD)
     server.sendmail(GMAIL_USER, GMAIL_USER, msg.as_string())
     server.quit()
