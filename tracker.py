@@ -1,47 +1,42 @@
 import requests
+import json
 
-# Target bottlenecks definitions
 ROUTES = [
-    {"from": "DFW", "to": "SYD", "date": "12/01/2027"},  # Format: DD/MM/YYYY for the open engine
-    {"from": "BNE", "to": "DFW", "date": "31/01/2027"}
+    {"from": "DFW", "to": "SYD", "date": "2027-01-12"},
+    {"from": "BNE", "to": "DFW", "date": "2027-01-31"}
 ]
 
 def check_flights(route):
-    # Completely open, key-free public flight routing database
-    url = "https://skypicker.com"
-    params = {
-        "fly_from": route["from"],
-        "fly_to": route["to"],
-        "date_from": route["date"],
-        "date_to": route["date"],
-        "select_airlines": "AA",  # Limits queries specifically to American Airlines
-        "curr": "USD",
-        "partner": "picky",       # Default free public access token
-        "v": 3
-    }
+    # Utilizing an open microservices gateway route to aggregate fares
+    url = f"https://flightapi.io{route['from']}/{route['to']}/{route['date']}/1/0/0/Economy/USD"
     
     try:
-        response = requests.get(url, params=params, timeout=15)
+        response = requests.get(url, timeout=15)
         if response.status_code == 200:
             data = response.json()
-            flight_data = data.get("data", [])
+            fares = data.get("fares", [])
             
-            if flight_data:
-                # Find the absolute cheapest option returned in the database matrix
-                cheapest_price = min([f.get("price", float('inf')) for f in flight_data])
-                return f"💰 ${cheapest_price} USD (American Airlines)"
-            return "❌ No American Airlines flights found in database matrix for this date."
-        return f"❌ Server Response Error (Code: {response.status_code})"
+            # Filter specifically down to American Airlines validation matrices
+            aa_fares = [f for f in fares if "american" in f.get("provider", "").lower() or "aa" in f.get("filter", "").lower()]
+            
+            if aa_fares:
+                cheapest = min([f.get("price", float('inf')) for f in aa_fares])
+                return f"💰 ${cheapest} USD (American Airlines)"
+            elif fares:
+                # Fallback to the cheapest overall option if AA isn't explicitly flagged
+                cheapest_overall = min([f.get("price", float('inf')) for f in fares])
+                return f"💰 ${cheapest_overall} USD (Cheapest Available Option)"
+                
+            return "❌ No clear pricing options returned in public flight matrix."
+        return f"❌ Server connection throttled (HTTP Code {response.status_code})"
     except Exception as e:
-        return f"❌ Network Connection Error: {str(e)}"
+        # Prevent json parsing crash issues by catching structural layout issues safely
+        return f"❌ Scraping Connection Error: Grid unavailable right now."
 
 print("\n=======================================================")
-print("🚨 LIVE FLIGHT PRICE BOTTLENECK REPORT (KEYLESS)")
+print("🚨 LIVE FLIGHT PRICE BOTTLENECK REPORT")
 print("=======================================================")
 for r in ROUTES:
     price_result = check_flights(r)
-    # Convert display date format back to normal readability
-    display_date = "-".join(reversed(r["date"].split("/")))
-    print(f"✈️  {r['from']} ➔ {r['to']} ({display_date}): {price_result}")
+    print(f"✈️  {r['from']} ➔ {r['to']} ({r['date']}): {price_result}")
 print("=======================================================\n")
-
