@@ -1,15 +1,10 @@
 import os
 import requests
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 # Fetch secrets from GitHub
 SERPAPI_KEY = os.environ.get('SERPAPI_KEY')
-GMAIL_USER = os.environ.get('RECEIVER_EMAIL')      # remy.garderet@gmail.com
-GMAIL_PASSWORD = os.environ.get('GMAIL_PASSWORD')  # Your 16-character Google App Password
 
-# Your exact bottleneck flights (Updated to target January 2027 based on your request)
+# Your exact bottleneck flights
 ROUTES = [
     {"from": "DFW", "to": "SYD", "date": "2027-01-12"},
     {"from": "BNE", "to": "DFW", "date": "2027-01-31"}
@@ -32,39 +27,23 @@ def check_flights(route):
         response = requests.get(url, params=params)
         if response.status_code == 200:
             data = response.json()
-            # Combine best and other flights matrix arrays
             all_flights = data.get("best_flights", []) + data.get("other_flights", [])
-            
-            # Filter specifically for American Airlines
             aa_flights = [f for f in all_flights if "american" in f.get("airline", "").lower()]
             
             if aa_flights:
                 cheapest = min(aa_flights, key=lambda x: x.get("price", float('inf')))
-                return f"💰 ${cheapest.get('price')} USD"
-            return "❌ No American Airlines flights found."
-        return "❌ API Error"
+                return f"💰 ${cheapest.get('price')} USD (American Airlines)"
+            return "❌ No American Airlines flights found for this date matrix."
+        return f"❌ API Error (Status Code: {response.status_code})"
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f"❌ Network Request Error: {str(e)}"
 
-# Generate Email Content
-email_body = "<h3>✈️ Daily Flight Tracker Bottlenecks</h3><hr>"
+# Generate clear visual markers directly into the GitHub Runner interface console logs
+print("\n=======================================================")
+print("🚨 LIVE FLIGHT PRICE BOTTLENECK REPORT")
+print("=======================================================")
 for r in ROUTES:
     price_result = check_flights(r)
-    email_body += f"<p><strong>{r['from']} → {r['to']}</strong> ({r['date']}): {price_result}</p>"
+    print(f"✈️  {r['from']} ➔ {r['to']} ({r['date']}): {price_result}")
+print("=======================================================\n")
 
-# Send Email via Gmail SMTP (Updated for network resilience)
-msg = MIMEMultipart()
-msg['From'] = GMAIL_USER
-msg['To'] = GMAIL_USER
-msg['Subject'] = '🚨 Daily Flight Price Update'
-msg.attach(MIMEText(email_body, 'html'))
-
-try:
-    # Using the more secure SSL explicit connection port to prevent name resolution drops
-    server = smtplib.SMTP_SSL('://gmail.com', 465, timeout=30)
-    server.login(GMAIL_USER, GMAIL_PASSWORD)
-    server.sendmail(GMAIL_USER, GMAIL_USER, msg.as_string())
-    server.quit()
-    print("Success! Email sent.")
-except Exception as e:
-    print(f"Email failed: {e}")
