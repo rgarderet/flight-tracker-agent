@@ -1,0 +1,20 @@
+name: Run Daily Flight Tracker
+on:
+  schedule:
+    - cron: '0 7 * * *' # Runs at 7:00 AM UTC daily
+  workflow_dispatch:
+jobs:
+  check-flights:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: pip install requests
+      - name: Run Script
+        env:
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+          RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
+        run: python tracker.py
