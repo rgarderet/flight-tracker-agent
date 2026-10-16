@@ -2,13 +2,14 @@ name: Run Daily Flight Tracker
 on:
   schedule:
     - cron: '0 7 * * *' # Runs at 7:00 AM UTC daily
-  workflow_dispatch: # Allows you to manually trigger it anytime
+  workflow_dispatch:
 jobs:
   check-flights:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      # Updated to v4 to clear the deprecation warning
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       - run: pip install requests
